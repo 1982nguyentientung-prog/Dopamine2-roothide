@@ -116,6 +116,7 @@
             }
         });
     }
+    else {   exit(0);}
 }
 
 -(void)setupStack
