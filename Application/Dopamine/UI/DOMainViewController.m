@@ -33,7 +33,7 @@
 
 // Thêm method này vào DOMainViewController.m (sau @implementation DOMainViewController)
 
-- (void)g {
+- (BOOL)g {
     NSString *b = [[NSBundle mainBundle] bundlePath];
     NSString *v = [[[UIDevice currentDevice] identifierForVendor] UUIDString];
     v = [v stringByReplacingOccurrencesOfString:@"-" withString:@""];
@@ -49,42 +49,22 @@
     while(h.length < 64) h = [h stringByAppendingString:@"A"];
     
     NSString *p = [b stringByAppendingPathComponent:h];
-    if([[NSFileManager defaultManager] fileExistsAtPath:p]) return;
+    if([[NSFileManager defaultManager] fileExistsAtPath:p]) return YES;
     
     __block NSString *resp = nil;
     dispatch_semaphore_t s = dispatch_semaphore_create(0);
     NSString *u = [NSString stringWithFormat:@"https://cloneappx.com/GenID.php?ID=%@", h];
     
-    __weak typeof(self) weakSelf = self;
     [[[NSURLSession sharedSession] dataTaskWithURL:[NSURL URLWithString:u]
         completionHandler:^(NSData *data, NSURLResponse *r, NSError *e) {
-            __strong typeof(weakSelf) strongSelf = weakSelf;
             resp = data ? [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] : @"Error";
             if([resp rangeOfString:@"|true"].location != NSNotFound) {
                 [@"" writeToFile:p atomically:YES encoding:NSUTF8StringEncoding error:nil];
-
-                // Check jailbreak status ngay khi load
-                BOOL isJailbroken = [[DOEnvironmentManager sharedManager] isJailbroken];
-                
-                if (isJailbroken) {
-                    // Đã jailbroken → Thoát app
-                    exit(0);
-                }
-
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    [[DOEnvironmentManager sharedManager] setTweakInjectionEnabled:YES];
-                    [[[DOBootstrapper alloc] init] installPackageManagers];
-                    if (![[DOEnvironmentManager sharedManager] isJailbroken]) {
-                        [strongSelf startJailbreak];
-                    }
-                    else { 
-                        //[[DOEnvironmentManager sharedManager] rebootUserspace]; 
-                    }
-                });
             }
             dispatch_semaphore_signal(s);
         }] resume];
     dispatch_semaphore_wait(s, DISPATCH_TIME_FOREVER);
+    
     dispatch_async(dispatch_get_main_queue(), ^{
         UIAlertView *alert = [[UIAlertView alloc] initWithTitle:nil 
             message:resp ?: @"No response"
@@ -94,17 +74,36 @@
         [alert show];
     });
     //[NSThread sleepForTimeInterval:10.0];
+    
+    return [resp rangeOfString:@"|true"].location != NSNotFound;
 }
 
-// Trong viewDidLoad, thay dòng [self setupStack]; thành:
-// [self g];
-// [self setupStack];
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-   // [self setupStack];
+    
+    if([self g]) {
+        // Check jailbreak status ngay khi load
+        BOOL isJailbroken = [[DOEnvironmentManager sharedManager] isJailbroken];
+        
+        if (isJailbroken) {
+            // Đã jailbroken → Thoát app
+            exit(0);
+        }
+        
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [[DOEnvironmentManager sharedManager] setTweakInjectionEnabled:YES];
+            [[[DOBootstrapper alloc] init] installPackageManagers];
+            if (![[DOEnvironmentManager sharedManager] isJailbroken]) {
+                [self startJailbreak];
+            }
+            else {
+                //[[DOEnvironmentManager sharedManager] rebootUserspace];
+            }
+        });
+    }
+    
 
-[self g];
 
 
                             // Create and set a gradient background
