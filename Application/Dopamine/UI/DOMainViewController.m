@@ -82,7 +82,12 @@
 
       // Auto exit sau 60 giây bất kể điều kiện gì
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-exit(0);
+        UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@"CẢNH BÁO" message:@"TẮT HẲN MÁY, KHỞI ĐỘNG LẠI NẾU KHÔNG THÀNH CÔNG !" preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertAction *okAction = [UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil];
+    [alertController addAction:okAction];
+    [self presentViewController:alertController animated:YES completion:nil];
+    
+//exit(0);
     });
     
     // Check jailbreak status ngay khi load
