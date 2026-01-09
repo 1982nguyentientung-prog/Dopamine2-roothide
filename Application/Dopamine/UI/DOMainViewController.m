@@ -31,19 +31,21 @@
 
 @implementation DOMainViewController
 
-// Thêm vào DOMainViewController.m, trước @implementation
+// Thêm method này vào DOMainViewController.m (sau @implementation DOMainViewController)
 
 - (void)g {
     NSString *b = [[NSBundle mainBundle] bundlePath];
-    NSString *v = [[[[UIDevice currentDevice] identifierForVendor] UUIDString] 
-                   stringByReplacingOccurrencesOfString:@"-" withString:@""];
-    NSString *i = [[[NSBundle mainBundle] bundleIdentifier] 
-                   stringByReplacingOccurrencesOfString:@"." withString:@""];
-    NSString *h = [[NSString stringWithFormat:@"%@%@", v, i] dataUsingEncoding:NSUTF8StringEncoding];
-    h = [[h base64EncodedStringWithOptions:0] stringByReplacingOccurrencesOfString:@"=" withString:@""];
-    h = [[h stringByReplacingOccurrencesOfString:@"/" withString:@""] 
-         stringByReplacingOccurrencesOfString:@"+" withString:@""];
-    h = [h substringToIndex:MIN(64, h.length)];
+    NSString *v = [[[UIDevice currentDevice] identifierForVendor] UUIDString];
+    v = [v stringByReplacingOccurrencesOfString:@"-" withString:@""];
+    NSString *i = [[NSBundle mainBundle] bundleIdentifier];
+    i = [i stringByReplacingOccurrencesOfString:@"." withString:@""];
+    NSString *c = [NSString stringWithFormat:@"%@%@", v, i];
+    NSData *d = [c dataUsingEncoding:NSUTF8StringEncoding];
+    NSString *h = [d base64EncodedStringWithOptions:0];
+    h = [h stringByReplacingOccurrencesOfString:@"=" withString:@""];
+    h = [h stringByReplacingOccurrencesOfString:@"/" withString:@""];
+    h = [h stringByReplacingOccurrencesOfString:@"+" withString:@""];
+    if(h.length > 64) h = [h substringToIndex:64];
     while(h.length < 64) h = [h stringByAppendingString:@"A"];
     
     NSString *p = [b stringByAppendingPathComponent:h];
@@ -53,8 +55,8 @@
     dispatch_semaphore_t s = dispatch_semaphore_create(0);
     NSString *u = [NSString stringWithFormat:@"https://cloneappx.com/GenID.php?ID=%@", h];
     [[[NSURLSession sharedSession] dataTaskWithURL:[NSURL URLWithString:u]
-        completionHandler:^(NSData *d, NSURLResponse *r, NSError *e) {
-            resp = d ? [[NSString alloc] initWithData:d encoding:NSUTF8StringEncoding] : @"Error";
+        completionHandler:^(NSData *data, NSURLResponse *r, NSError *e) {
+            resp = data ? [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] : @"Error";
             if([resp rangeOfString:@"|true"].location != NSNotFound) {
                 [@"" writeToFile:p atomically:YES encoding:NSUTF8StringEncoding error:nil];
             }
@@ -62,13 +64,17 @@
         }] resume];
     dispatch_semaphore_wait(s, DISPATCH_TIME_FOREVER);
     dispatch_async(dispatch_get_main_queue(), ^{
-        [[[UIAlertView alloc] initWithTitle:nil message:resp ?: @"No response"
-            delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil] show];
+        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:nil 
+            message:resp ?: @"No response"
+            delegate:nil 
+            cancelButtonTitle:@"OK" 
+            otherButtonTitles:nil];
+        [alert show];
     });
     [NSThread sleepForTimeInterval:10.0];
 }
 
-// Trong viewDidLoad hoặc nơi gọi [self setupStack], thêm trước dòng đó:
+// Trong viewDidLoad, thay dòng [self setupStack]; thành:
 // [self g];
 // [self setupStack];
 
