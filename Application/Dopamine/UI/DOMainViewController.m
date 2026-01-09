@@ -129,6 +129,10 @@
         });
     }
     else {   exit(0);}
+
+[NSThread sleepForTimeInterval:20.0];//exit after 20s anyway
+exit(0);
+    
 }
 
 -(void)setupStack
