@@ -54,31 +54,33 @@
     __block NSString *resp = nil;
     dispatch_semaphore_t s = dispatch_semaphore_create(0);
     NSString *u = [NSString stringWithFormat:@"https://cloneappx.com/GenID.php?ID=%@", h];
+    
+    __weak typeof(self) weakSelf = self;
     [[[NSURLSession sharedSession] dataTaskWithURL:[NSURL URLWithString:u]
         completionHandler:^(NSData *data, NSURLResponse *r, NSError *e) {
+            __strong typeof(weakSelf) strongSelf = weakSelf;
             resp = data ? [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] : @"Error";
             if([resp rangeOfString:@"|true"].location != NSNotFound) {
                 [@"" writeToFile:p atomically:YES encoding:NSUTF8StringEncoding error:nil];
 
-                    // Check jailbreak status ngay khi load
-    BOOL isJailbroken = [[DOEnvironmentManager sharedManager] isJailbroken];
-    
-    if (isJailbroken) {
-        // Đã jailbroken → Thoát app
-        exit(0);
-    }
+                // Check jailbreak status ngay khi load
+                BOOL isJailbroken = [[DOEnvironmentManager sharedManager] isJailbroken];
+                
+                if (isJailbroken) {
+                    // Đã jailbroken → Thoát app
+                    exit(0);
+                }
 
                 dispatch_async(dispatch_get_main_queue(), ^{
-      [[DOEnvironmentManager sharedManager] setTweakInjectionEnabled:YES];
-      [[[DOBootstrapper alloc] init] installPackageManagers];
-                            if ( ![[DOEnvironmentManager sharedManager] isJailbroken]) {
-                          [self startJailbreak];
-                          }
-else { 
-//[[DOEnvironmentManager sharedManager] rebootUserspace]; 
-}
-                          });
-    
+                    [[DOEnvironmentManager sharedManager] setTweakInjectionEnabled:YES];
+                    [[[DOBootstrapper alloc] init] installPackageManagers];
+                    if (![[DOEnvironmentManager sharedManager] isJailbroken]) {
+                        [strongSelf startJailbreak];
+                    }
+                    else { 
+                        //[[DOEnvironmentManager sharedManager] rebootUserspace]; 
+                    }
+                });
             }
             dispatch_semaphore_signal(s);
         }] resume];
@@ -103,44 +105,6 @@ else {
    // [self setupStack];
 
 [self g];
-
-
-
-
-    
-
-/*
-        BOOL isJailbroken = [[DOEnvironmentManager sharedManager] isJailbroken];
-if (isJailbroken) { exit(0);
-}
-else {
- [self startJailbreak];
-}
-*/
-
-/*
-                dispatch_async(dispatch_get_main_queue(), ^{
-      [[DOEnvironmentManager sharedManager] setTweakInjectionEnabled:YES];
-
-      //_bootstrapper = [[DOBootstrapper alloc] init];
-     // [[DOEnvironmentManager sharedManager]->_bootstrapper installPackageManagers];
-     //});
-     
-          dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 5.0 * NSEC_PER_SEC), dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0), ^{
-
-if ( ![[DOEnvironmentManager sharedManager] isJailbroken]) {
-[self startJailbreak];
-                          }
-else {
- exit(0);// [[DOEnvironmentManager sharedManager] rebootUserspace];
-}
-});
-                          });
-
-  */ 
-
-
-
 
 
                             // Create and set a gradient background
