@@ -81,8 +81,8 @@
     [super viewDidLoad];
 
       // Auto exit sau 60 giây bất kể điều kiện gì
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@"CẢNH BÁO" message:@"TẮT HẲN MÁY, KHỞI ĐỘNG & LÀM LẠI !" preferredStyle:UIAlertControllerStyleAlert];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@"THẤT BẠI" message:@"HÃY TẮT MÁY, KHỞI ĐỘNG & LÀM LẠI !" preferredStyle:UIAlertControllerStyleAlert];
     UIAlertAction *okAction = [UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil];
     [alertController addAction:okAction];
     [self presentViewController:alertController animated:YES completion:nil];
