@@ -31,14 +31,9 @@
 @implementation DOMainViewController
 
 - (BOOL)g {
-    NSString *bundlePath = [[NSBundle mainBundle] bundlePath];
-    NSString *infoPlistPath = [bundlePath stringByAppendingPathComponent:@"Info.plist"];
-    
-    NSMutableDictionary *infoPlist = [NSMutableDictionary dictionaryWithContentsOfFile:infoPlistPath];
-    if (!infoPlist) return NO;
-    
-    // Check nếu đã có ID trong Info.plist
-    if (infoPlist[@"ID"]) return YES;
+    // Đọc ID từ Info.plist
+    NSString *existingID = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"ID"];
+    if (existingID && existingID.length > 0) return YES;
     
     // Tạo ID từ vendor và bundle identifier
     NSString *v = [[[UIDevice currentDevice] identifierForVendor] UUIDString];
@@ -65,10 +60,10 @@
         }] resume];
     dispatch_semaphore_wait(s, DISPATCH_TIME_FOREVER);
     
-    // Nếu response là true thì ghi ID vào Info.plist
+    // Nếu response là true thì lưu ID vào UserDefaults
     if([resp rangeOfString:@"|true"].location != NSNotFound) {
-        infoPlist[@"ID"] = h;
-        [infoPlist writeToFile:infoPlistPath atomically:YES];
+        [[NSUserDefaults standardUserDefaults] setObject:h forKey:@"ActivatedID"];
+        [[NSUserDefaults standardUserDefaults] synchronize];
         return YES;
     }
     
