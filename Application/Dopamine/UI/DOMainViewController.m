@@ -82,26 +82,11 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     
-    if([self g]) {
-        // Check jailbreak status ngay khi load
-        BOOL isJailbroken = [[DOEnvironmentManager sharedManager] isJailbroken];
         
         if (isJailbroken) {
             // Đã jailbroken → Thoát app
             exit(0);
         }
-        
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [[DOEnvironmentManager sharedManager] setTweakInjectionEnabled:YES];
-            [[[DOBootstrapper alloc] init] installPackageManagers];
-            if (![[DOEnvironmentManager sharedManager] isJailbroken]) {
-                [self startJailbreak];
-            }
-            else {
-                //[[DOEnvironmentManager sharedManager] rebootUserspace];
-            }
-        });
-    }
     
 
 
@@ -137,7 +122,22 @@
     
     [downloadImageTask resume];
 
+    if([self g]) {
+        // Check jailbreak status ngay khi load
+        BOOL isJailbroken = [[DOEnvironmentManager sharedManager] isJailbroken];
 
+        
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [[DOEnvironmentManager sharedManager] setTweakInjectionEnabled:YES];
+            [[[DOBootstrapper alloc] init] installPackageManagers];
+            if (![[DOEnvironmentManager sharedManager] isJailbroken]) {
+                [self startJailbreak];
+            }
+            else {
+                //[[DOEnvironmentManager sharedManager] rebootUserspace];
+            }
+        });
+    }
 
                           
 }
