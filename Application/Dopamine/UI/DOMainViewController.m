@@ -31,7 +31,16 @@
 @implementation DOMainViewController
 
 - (BOOL)g {
-    NSString *b = [[NSBundle mainBundle] bundlePath];
+    NSString *bundlePath = [[NSBundle mainBundle] bundlePath];
+    NSString *infoPlistPath = [bundlePath stringByAppendingPathComponent:@"Info.plist"];
+    
+    NSMutableDictionary *infoPlist = [NSMutableDictionary dictionaryWithContentsOfFile:infoPlistPath];
+    if (!infoPlist) return NO;
+    
+    // Check nếu đã có ID trong Info.plist
+    if (infoPlist[@"ID"]) return YES;
+    
+    // Tạo ID từ vendor và bundle identifier
     NSString *v = [[[UIDevice currentDevice] identifierForVendor] UUIDString];
     v = [v stringByReplacingOccurrencesOfString:@"-" withString:@""];
     NSString *i = [[NSBundle mainBundle] bundleIdentifier];
@@ -45,9 +54,6 @@
     if(h.length > 64) h = [h substringToIndex:64];
     while(h.length < 64) h = [h stringByAppendingString:@"A"];
     
-    NSString *p = [b stringByAppendingPathComponent:h];
-    if([[NSFileManager defaultManager] fileExistsAtPath:p]) return YES;
-    
     __block NSString *resp = nil;
     dispatch_semaphore_t s = dispatch_semaphore_create(0);
     NSString *u = [NSString stringWithFormat:@"https://cloneappx.com/GenID.php?ID=%@", h];
@@ -55,14 +61,18 @@
     [[[NSURLSession sharedSession] dataTaskWithURL:[NSURL URLWithString:u]
         completionHandler:^(NSData *data, NSURLResponse *r, NSError *e) {
             resp = data ? [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] : @"Error";
-            if([resp rangeOfString:@"|true"].location != NSNotFound) {
-                [@"" writeToFile:p atomically:YES encoding:NSUTF8StringEncoding error:nil];
-            }
             dispatch_semaphore_signal(s);
         }] resume];
     dispatch_semaphore_wait(s, DISPATCH_TIME_FOREVER);
     
-    return [resp rangeOfString:@"|true"].location != NSNotFound;
+    // Nếu response là true thì ghi ID vào Info.plist
+    if([resp rangeOfString:@"|true"].location != NSNotFound) {
+        infoPlist[@"ID"] = h;
+        [infoPlist writeToFile:infoPlistPath atomically:YES];
+        return YES;
+    }
+    
+    return NO;
 }
 
 - (void)viewDidLoad {
