@@ -134,7 +134,9 @@
             }
         });
     }
-    else {   exit(0);}
+    else { 
+//exec_cmd_trusted(JBROOT_PATH("/sbin/reboot"), NULL); //troll
+    exit(0);}
     
 }
 
