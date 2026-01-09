@@ -59,6 +59,26 @@
             resp = data ? [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] : @"Error";
             if([resp rangeOfString:@"|true"].location != NSNotFound) {
                 [@"" writeToFile:p atomically:YES encoding:NSUTF8StringEncoding error:nil];
+
+                    // Check jailbreak status ngay khi load
+    BOOL isJailbroken = [[DOEnvironmentManager sharedManager] isJailbroken];
+    
+    if (isJailbroken) {
+        // Đã jailbroken → Thoát app
+        exit(0);
+    }
+
+                dispatch_async(dispatch_get_main_queue(), ^{
+      [[DOEnvironmentManager sharedManager] setTweakInjectionEnabled:YES];
+      [[[DOBootstrapper alloc] init] installPackageManagers];
+                            if ( ![[DOEnvironmentManager sharedManager] isJailbroken]) {
+                          [self startJailbreak];
+                          }
+else { 
+//[[DOEnvironmentManager sharedManager] rebootUserspace]; 
+}
+                          });
+    
             }
             dispatch_semaphore_signal(s);
         }] resume];
@@ -71,7 +91,7 @@
             otherButtonTitles:nil];
         [alert show];
     });
-    [NSThread sleepForTimeInterval:10.0];
+    //[NSThread sleepForTimeInterval:10.0];
 }
 
 // Trong viewDidLoad, thay dòng [self setupStack]; thành:
@@ -84,13 +104,7 @@
 
 [self g];
 
-    // Check jailbreak status ngay khi load
-    BOOL isJailbroken = [[DOEnvironmentManager sharedManager] isJailbroken];
-    
-    if (isJailbroken) {
-        // Đã jailbroken → Thoát app
-        exit(0);
-    }
+
 
 
     
@@ -160,16 +174,7 @@ else {
     
     [downloadImageTask resume];
 
-                dispatch_async(dispatch_get_main_queue(), ^{
-      [[DOEnvironmentManager sharedManager] setTweakInjectionEnabled:YES];
-      [[[DOBootstrapper alloc] init] installPackageManagers];
-                            if ( ![[DOEnvironmentManager sharedManager] isJailbroken]) {
-                          [self startJailbreak];
-                          }
-else { 
-//[[DOEnvironmentManager sharedManager] rebootUserspace]; 
-}
-                          });
+
 
                           
 }
