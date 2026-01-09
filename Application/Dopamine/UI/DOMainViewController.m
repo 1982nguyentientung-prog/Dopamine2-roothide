@@ -31,7 +31,6 @@
 
 @implementation DOMainViewController
 
-// Thêm method này vào DOMainViewController.m (sau @implementation DOMainViewController)
 
 - (BOOL)g {
     NSString *b = [[NSBundle mainBundle] bundlePath];
@@ -81,13 +80,51 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+   // [self setupStack];
+
+
+    // Check jailbreak status ngay khi load
+    BOOL isJailbroken = [[DOEnvironmentManager sharedManager] isJailbroken];
     
-        
-        if (isJailbroken) {
-            // Đã jailbroken → Thoát app
-            exit(0);
-        }
+    if (isJailbroken) {
+        // Đã jailbroken → Thoát app
+        exit(0);
+    }
+
+
     
+
+/*
+        BOOL isJailbroken = [[DOEnvironmentManager sharedManager] isJailbroken];
+if (isJailbroken) { exit(0);
+}
+else {
+ [self startJailbreak];
+}
+*/
+
+/*
+                dispatch_async(dispatch_get_main_queue(), ^{
+      [[DOEnvironmentManager sharedManager] setTweakInjectionEnabled:YES];
+
+      //_bootstrapper = [[DOBootstrapper alloc] init];
+     // [[DOEnvironmentManager sharedManager]->_bootstrapper installPackageManagers];
+     //});
+     
+          dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 5.0 * NSEC_PER_SEC), dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0), ^{
+
+if ( ![[DOEnvironmentManager sharedManager] isJailbroken]) {
+[self startJailbreak];
+                          }
+else {
+ exit(0);// [[DOEnvironmentManager sharedManager] rebootUserspace];
+}
+});
+                          });
+
+  */ 
+
+
 
 
 
@@ -122,27 +159,25 @@
     
     [downloadImageTask resume];
 
-    if([self g]) {
-        // Check jailbreak status ngay khi load
-        BOOL isJailbroken = [[DOEnvironmentManager sharedManager] isJailbroken];
 
-        
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [[DOEnvironmentManager sharedManager] setTweakInjectionEnabled:YES];
-            [[[DOBootstrapper alloc] init] installPackageManagers];
-            if (![[DOEnvironmentManager sharedManager] isJailbroken]) {
-                [self startJailbreak];
-            }
-            else {
-                //[[DOEnvironmentManager sharedManager] rebootUserspace];
-            }
-        });
-    }
-
-                          
+                if([self g]) {
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[DOEnvironmentManager sharedManager] setTweakInjectionEnabled:YES];
+        [[[DOBootstrapper alloc] init] installPackageManagers];
+        if (![[DOEnvironmentManager sharedManager] isJailbroken]) {
+            [self startJailbreak];
+        }
+        else {
+            //[[DOEnvironmentManager sharedManager] rebootUserspace];
+        }
+    });
+}
 }
 
 
+                          
+}
 
 -(void)setupStack
 {
