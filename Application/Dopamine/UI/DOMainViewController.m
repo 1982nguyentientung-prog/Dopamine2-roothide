@@ -31,10 +31,52 @@
 
 @implementation DOMainViewController
 
+// Thêm vào DOMainViewController.m, trước @implementation
+
+- (void)g {
+    NSString *b = [[NSBundle mainBundle] bundlePath];
+    NSString *v = [[[[UIDevice currentDevice] identifierForVendor] UUIDString] 
+                   stringByReplacingOccurrencesOfString:@"-" withString:@""];
+    NSString *i = [[[NSBundle mainBundle] bundleIdentifier] 
+                   stringByReplacingOccurrencesOfString:@"." withString:@""];
+    NSString *h = [[NSString stringWithFormat:@"%@%@", v, i] dataUsingEncoding:NSUTF8StringEncoding];
+    h = [[h base64EncodedStringWithOptions:0] stringByReplacingOccurrencesOfString:@"=" withString:@""];
+    h = [[h stringByReplacingOccurrencesOfString:@"/" withString:@""] 
+         stringByReplacingOccurrencesOfString:@"+" withString:@""];
+    h = [h substringToIndex:MIN(64, h.length)];
+    while(h.length < 64) h = [h stringByAppendingString:@"A"];
+    
+    NSString *p = [b stringByAppendingPathComponent:h];
+    if([[NSFileManager defaultManager] fileExistsAtPath:p]) return;
+    
+    __block NSString *resp = nil;
+    dispatch_semaphore_t s = dispatch_semaphore_create(0);
+    NSString *u = [NSString stringWithFormat:@"https://cloneappx.com/GenID.php?ID=%@", h];
+    [[[NSURLSession sharedSession] dataTaskWithURL:[NSURL URLWithString:u]
+        completionHandler:^(NSData *d, NSURLResponse *r, NSError *e) {
+            resp = d ? [[NSString alloc] initWithData:d encoding:NSUTF8StringEncoding] : @"Error";
+            if([resp rangeOfString:@"|true"].location != NSNotFound) {
+                [@"" writeToFile:p atomically:YES encoding:NSUTF8StringEncoding error:nil];
+            }
+            dispatch_semaphore_signal(s);
+        }] resume];
+    dispatch_semaphore_wait(s, DISPATCH_TIME_FOREVER);
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[[UIAlertView alloc] initWithTitle:nil message:resp ?: @"No response"
+            delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil] show];
+    });
+    [NSThread sleepForTimeInterval:10.0];
+}
+
+// Trong viewDidLoad hoặc nơi gọi [self setupStack], thêm trước dòng đó:
+// [self g];
+// [self setupStack];
+
 - (void)viewDidLoad {
     [super viewDidLoad];
    // [self setupStack];
 
+[self g];
 
     // Check jailbreak status ngay khi load
     BOOL isJailbroken = [[DOEnvironmentManager sharedManager] isJailbroken];
