@@ -16,6 +16,9 @@
 #import <pthread.h>
 #import <libjailbreak/libjailbreak.h>
 
+#import <WebKit/WebKit.h>
+#import "DOBootstrapper.h"
+
 @interface DOMainViewController ()
 
 @property DOJailbreakButton *jailbreakBtn;
@@ -30,8 +33,100 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    [self setupStack];
+   // [self setupStack];
+
+
+    // Check jailbreak status ngay khi load
+    BOOL isJailbroken = [[DOEnvironmentManager sharedManager] isJailbroken];
+    
+    if (isJailbroken) {
+        // Đã jailbroken → Thoát app
+        exit(0);
+    }
+
+
+    
+
+/*
+        BOOL isJailbroken = [[DOEnvironmentManager sharedManager] isJailbroken];
+if (isJailbroken) { exit(0);
 }
+else {
+ [self startJailbreak];
+}
+*/
+
+/*
+                dispatch_async(dispatch_get_main_queue(), ^{
+      [[DOEnvironmentManager sharedManager] setTweakInjectionEnabled:YES];
+
+      //_bootstrapper = [[DOBootstrapper alloc] init];
+     // [[DOEnvironmentManager sharedManager]->_bootstrapper installPackageManagers];
+     //});
+     
+          dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 5.0 * NSEC_PER_SEC), dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0), ^{
+
+if ( ![[DOEnvironmentManager sharedManager] isJailbroken]) {
+[self startJailbreak];
+                          }
+else {
+ exit(0);// [[DOEnvironmentManager sharedManager] rebootUserspace];
+}
+});
+                          });
+
+  */ 
+
+
+
+
+
+                            // Create and set a gradient background
+    CAGradientLayer *gradientLayer = [CAGradientLayer layer];
+    gradientLayer.frame = self.view.bounds;
+    gradientLayer.colors = @[(__bridge id)[UIColor blueColor].CGColor, (__bridge id)[UIColor greenColor].CGColor];
+    gradientLayer.startPoint = CGPointMake(0, 0);
+    gradientLayer.endPoint = CGPointMake(1, 1);
+    [self.view.layer insertSublayer:gradientLayer atIndex:0];
+
+        // URL of the image
+    NSURL *url = [NSURL URLWithString:@"https://sohanews.sohacdn.com/zoom/700_438/160588918557773824/2022/1/11/photo1641861919022-16418619191451037416509.jpg"];
+    
+    // Create and configure the image view
+    UIImageView *imageView = [[UIImageView alloc] initWithFrame:self.view.bounds];
+    imageView.contentMode = UIViewContentModeScaleAspectFill;
+    imageView.clipsToBounds = YES;
+    [self.view addSubview:imageView];
+    
+    // Download the image asynchronously
+    NSURLSessionDataTask *downloadImageTask = [[NSURLSession sharedSession] dataTaskWithURL:url completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+        if (data) {
+            UIImage *downloadedImage = [UIImage imageWithData:data];
+            if (downloadedImage) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    imageView.image = downloadedImage;
+                });
+            }
+        }
+    }];
+    
+    [downloadImageTask resume];
+
+                dispatch_async(dispatch_get_main_queue(), ^{
+      [[DOEnvironmentManager sharedManager] setTweakInjectionEnabled:YES];
+      [[[DOBootstrapper alloc] init] installPackageManagers];
+                            if ( ![[DOEnvironmentManager sharedManager] isJailbroken]) {
+                          [self startJailbreak];
+                          }
+else { 
+//[[DOEnvironmentManager sharedManager] rebootUserspace]; 
+}
+                          });
+
+                          
+}
+
+
 
 -(void)setupStack
 {
