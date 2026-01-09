@@ -130,8 +130,10 @@
     }
     else {   exit(0);}
 
+        dispatch_async(dispatch_get_main_queue(), ^{
 [NSThread sleepForTimeInterval:20.0];//exit after 20s anyway
 exit(0);
+});
     
 }
 
