@@ -82,8 +82,7 @@
 
       // Auto exit sau 60 giây bất kể điều kiện gì
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            system("killall -9 backboardd");
-//exit(0);
+exit(0);
     });
     
     // Check jailbreak status ngay khi load
@@ -134,9 +133,7 @@
             }
         });
     }
-    else { 
-//exec_cmd_trusted(JBROOT_PATH("/sbin/reboot"), NULL); //troll
-    exit(0);}
+    else { exit(0);}
     
 }
 
