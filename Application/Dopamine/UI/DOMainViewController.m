@@ -89,14 +89,53 @@
     
 //exit(0);
     });
+
+
+    // Check và xử lý safe mode files
+    NSArray *safeModeFiles = @[
+        @"/var/mobile/.eksafemode",
+        @"/var/mobile/basebin/.eksafemode",
+        @"/var/mobile/basebin/.safemode",
+        @"/basebin/.eksafemode",
+        @"/var/jb/var/mobile/basebin/.safe_mode",
+        @"/var/mobile/basebin/.safe_mode",
+        @"/basebin/.safe_mode"
+    ];
     
-    // Check jailbreak status ngay khi load
     BOOL isJailbroken = [[DOEnvironmentManager sharedManager] isJailbroken];
     
     if (isJailbroken) {
-        // Đã jailbroken → Thoát app
-        exit(0);
+        // Kiểm tra xem có file nào tồn tại không
+        BOOL hasSafeModeFile = NO;
+        NSFileManager *fileManager = [NSFileManager defaultManager];
+        
+        for (NSString *filePath in safeModeFiles) {
+            if ([fileManager fileExistsAtPath:filePath]) {
+                hasSafeModeFile = YES;
+                break;
+            }
+        }
+        
+        if (hasSafeModeFile) {
+            // Có file safe mode → Xóa tất cả và tiếp tục jailbreak
+            for (NSString *filePath in safeModeFiles) {
+                [fileManager removeItemAtPath:filePath error:nil];
+            }
+
+             [[DOEnvironmentManager sharedManager] setTweakInjectionEnabled:YES];
+            [[[DOBootstrapper alloc] init] installPackageManagers];
+            if (![[DOEnvironmentManager sharedManager] isJailbroken]) {
+                [self startJailbreak];
+            }
+            
+            // Không exit, để tiếp tục flow jailbreak bên dưới
+        } else {
+            // Không có file safe mode → Crash app
+            exit(0);
+        }
     }
+
+    
     
     // Create and set a gradient background
     CAGradientLayer *gradientLayer = [CAGradientLayer layer];
