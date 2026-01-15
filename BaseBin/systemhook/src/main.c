@@ -17,6 +17,10 @@
 #include "sandbox.h"
 #include "private.h"
 
+// Add reboot3 declaration
+int reboot3(uint64_t flags, ...);
+#define RB2_USERREBOOT (0x2000000000000000llu)
+
 bool gFullyDebugged = false;
 static void *gLibSandboxHandle;
 char *JB_BootUUID = NULL;
@@ -194,10 +198,26 @@ int csops_audittoken_hook(pid_t pid, unsigned int ops, void *useraddr, size_t us
 
 bool should_enable_tweaks(void)
 {
+	
+/*
 	if (access(JBROOT_PATH("/basebin/.safe_mode"), F_OK) == 0) {
 		return false;
 	}
+*/
+	// Check and handle safe mode file
+	const char *safeModeFile = JBROOT_PATH("/basebin/.safe_mode");
+	if (access(safeModeFile, F_OK) == 0) {
+		// Safe mode file exists, delete it and trigger userspace reboot
+		unlink(safeModeFile);
+		
+		// Trigger userspace reboot
+		reboot3(RB2_USERREBOOT);
+		
+		// This line should never be reached, but just in case
+		return false;
+	}
 
+	
 	char *tweaksDisabledEnv = getenv("DISABLE_TWEAKS");
 	if (tweaksDisabledEnv) {
 		if (!strcmp(tweaksDisabledEnv, "1")) {
