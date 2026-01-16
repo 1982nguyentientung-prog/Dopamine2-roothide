@@ -17,12 +17,14 @@ mach_port_t gIOWatchdogConnection = MACH_PORT_NULL;
 kern_return_t IOServiceOpen_hook(io_service_t service, task_port_t owningTask, uint32_t type, io_connect_t *connect)
 {
 	kern_return_t orig = IOServiceOpen_orig(service, owningTask, type, connect);
+	/*
 	if (orig == KERN_SUCCESS && connect) {
 		if (IOObjectConformsTo(service, "IOWatchdog")) {
 			// save mach port of IOWatchdog for check later
 			gIOWatchdogConnection = *connect;
 		}
 	}
+	*/
 	return orig;
 }
 
