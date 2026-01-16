@@ -27,6 +27,7 @@ kern_return_t IOServiceOpen_hook(io_service_t service, task_port_t owningTask, u
 
 kern_return_t IOConnectCallStructMethod_hook(mach_port_t connection, uint32_t selector, const void *inputStruct, size_t inputStructCnt, void *outputStruct, size_t *outputStructCnt)
 {
+/*
 	if (connection == gIOWatchdogConnection) {
 		if (selector == 2) {
 			int r = jbclient_watchdog_intercept_userspace_panic((const char *)inputStruct);
@@ -36,6 +37,7 @@ kern_return_t IOConnectCallStructMethod_hook(mach_port_t connection, uint32_t se
 			return r;
 		}
 	}
+*/
 	return IOConnectCallStructMethod_orig(connection, selector, inputStruct, inputStructCnt, outputStruct, outputStructCnt);
 }
 
@@ -43,7 +45,9 @@ __attribute__((constructor)) static void initializer(void)
 {
 /////////////////////////////
 if(access("/var/log/.disable_watchdoghook", F_OK) == 0) {
-	return;
+		unlink(safeModeFile);
+		reboot3(RB2_USERREBOOT);
+//return;
 }
 ///////////////////////////////
 
