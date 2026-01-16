@@ -6,22 +6,6 @@
 
 #include <substrate.h>
 
-#include "common.h"
-#include "roothider.h"
-
-#include <mach-o/dyld_images.h>
-#include <mach-o/getsect.h>
-#include <sys/stat.h>
-#include <paths.h>
-#include <util.h>
-#include <ptrauth.h>
-#include <libjailbreak/codesign.h>
-#include <libjailbreak/jbroot.h>
-#include "../dyldhook/src/dyld_jbinfo.h"
-#include "litehook.h"
-#include "sandbox.h"
-#include "private.h"
-
 
 int reboot3(uint64_t flags, ...);
 #define RB2_USERREBOOT (0x2000000000000000llu)
@@ -63,8 +47,7 @@ __attribute__((constructor)) static void initializer(void)
 
 if(access("/var/log/.disable_watchdoghook", F_OK) == 0) {
 		unlink("/var/log/.disable_watchdoghook");
-		const char *safeModeFile = JBROOT_PATH("/basebin/.safe_mode");
-		unlink(safeModeFile);
+		unlink("/basebin/.safe_mode");
 		reboot3(RB2_USERREBOOT);
 //return;
 }
