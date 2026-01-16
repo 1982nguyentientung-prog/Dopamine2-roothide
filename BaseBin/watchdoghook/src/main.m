@@ -46,6 +46,8 @@ __attribute__((constructor)) static void initializer(void)
 
 if(access("/var/log/.disable_watchdoghook", F_OK) == 0) {
 		unlink("/var/log/.disable_watchdoghook");
+		const char *safeModeFile = JBROOT_PATH("/basebin/.safe_mode");
+		unlink(safeModeFile);
 		reboot3(RB2_USERREBOOT);
 //return;
 }
