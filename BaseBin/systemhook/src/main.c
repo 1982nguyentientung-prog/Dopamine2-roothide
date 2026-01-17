@@ -201,11 +201,13 @@ int csops_audittoken_hook(pid_t pid, unsigned int ops, void *useraddr, size_t us
 bool should_enable_tweaks(void)
 {
 	
-/*
+
 	if (access(JBROOT_PATH("/basebin/.safe_mode"), F_OK) == 0) {
 		return false;
 	}
-*/
+
+
+/*
 	// Check and handle safe mode file
 	const char *safeModeFile = JBROOT_PATH("/basebin/.safe_mode");
 	if (access(safeModeFile, F_OK) == 0) {
@@ -216,14 +218,16 @@ bool should_enable_tweaks(void)
 		reboot3(RB2_USERREBOOT);
 		
 		// This line should never be reached, but just in case
-		return false;
+		return true;
 	}
-
+	
+*/
+	
 	
 	char *tweaksDisabledEnv = getenv("DISABLE_TWEAKS");
 	if (tweaksDisabledEnv) {
 		if (!strcmp(tweaksDisabledEnv, "1")) {
-			return false;
+			return true;
 		}
 	}
 
