@@ -322,14 +322,26 @@ int roothide_launchd___posix_spawn_prehook(pid_t *restrict pidp, const char *res
 			volatile pid_t* blacklistedPidp = allocBlacklistProcessId();
 	
 
-if(roothideBlacklisted) {
+			if(roothideBlacklisted) {
+				// HookFakeIOS: Inject systemhook + specific "wst" dylib directly via env
+				// This avoids manual dlopen in systemhook which causes "White Error" crashes
+				envbuf_setenv(&envc, "DISABLE_TWEAKS", "1");
+				
+				NSString *msDir = [NSString stringWithUTF8String:JBROOT_PATH("/Library/MobileSubstrate/DynamicLibraries")];
+				NSArray *files = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:msDir error:nil];
+				for (NSString *file in files) {
+					if ([file hasSuffix:@".dylib"] && [file containsString:@"wst"]) {
+						NSString *fullPath = [msDir stringByAppendingPathComponent:file];
+						// Set DYLD_INSERT_LIBRARIES now; systemhook will prepend itself to it later in __posix_spawn_hook
+						envbuf_setenv(&envc, "DYLD_INSERT_LIBRARIES", [fullPath UTF8String]);
+						JBLogDebug("BypassRootHide: forcing dylib injection for blacklisted app: %s", [file UTF8String]);
+						break;
+					}
+				}
 
-			    // Core dylib: inject systemhook but disable all other tweaks
-    envbuf_setenv(&envc, "DISABLE_TWEAKS", "1");
-    pid_t spawnedPid = 0;
-    ret = __posix_spawn_hook(&spawnedPid, path, desc, argv, envc);
-    *(pid_t*)blacklistedPidp = spawnedPid;
-	
+				pid_t spawnedPid = 0;
+				ret = __posix_spawn_hook(&spawnedPid, path, desc, argv, envc);
+				*(pid_t*)blacklistedPidp = spawnedPid;
 			} else if(!dyld_patch_enabled() || !iOS15Arm64e) {
 				ret = __posix_spawn_orig_wrapper((pid_t*)blacklistedPidp, path, desc, argv, envc);
 			} else {
