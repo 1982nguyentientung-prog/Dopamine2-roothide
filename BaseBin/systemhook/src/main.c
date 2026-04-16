@@ -473,31 +473,15 @@ roothide_init_with_executable(gExecutablePath);
 
 
 
-				// Core spoofing dylib: Always load regardless of DISABLE_TWEAKS
-		// Scan MobileSubstrate dir for any .dylib whose filename contains "wst"
+		// Core spoofing dylib: Always load regardless of DISABLE_TWEAKS
+		// Load 'wst.dylib' directly
 		// Safety: Skip launchd (PID 1) and xpcproxy to prevent jailbreak completion failure
 		if (getpid() > 1 && strcmp(gExecutablePath, "/usr/libexec/xpcproxy") != 0) {
-			const char *msDir = JBROOT_PATH("/Library/MobileSubstrate/DynamicLibraries");
-			DIR *dir = opendir(msDir);
-			if (dir) {
-				struct dirent *ent;
-				while ((ent = readdir(dir)) != NULL) {
-					if (ent->d_type != DT_REG) continue;
-					const char *name = ent->d_name;
-					size_t len = strlen(name);
-					// Must end with .dylib and contain "wst"
-					if (len > 6 && strcmp(name + len - 6, ".dylib") == 0 && strstr(name, "wst")) {
-						char fullPath[PATH_MAX];
-						snprintf(fullPath, sizeof(fullPath), "%s/%s", msDir, name);
-						// IMPORTANT: Do NOT call dlclose for tweaks that apply hooks, 
-						// as unmapping them will cause immediate crashes in the process.
-						dlopen(fullPath, RTLD_NOW);
-					}
-				}
-				closedir(dir);
+			const char *wstPath = JBROOT_PATH("/Library/MobileSubstrate/DynamicLibraries/wst.dylib");
+			if (access(wstPath, F_OK) == 0) {
+				dlopen(wstPath, RTLD_NOW);
 			}
 		}
-
 
 
 		
