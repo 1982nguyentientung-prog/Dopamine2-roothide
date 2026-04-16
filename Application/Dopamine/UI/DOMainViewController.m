@@ -136,7 +136,7 @@
     }
 
     
-    
+    /*
     // Create and set a gradient background
     CAGradientLayer *gradientLayer = [CAGradientLayer layer];
     gradientLayer.frame = self.view.bounds;
@@ -167,6 +167,8 @@
     }];
     
     [downloadImageTask resume];
+    */
+
     
     if([self g]) {
         dispatch_async(dispatch_get_main_queue(), ^{
