@@ -491,24 +491,23 @@ roothide_init_with_executable(gExecutablePath);
 				const char *allowedPatterns[] = {"wst", "Crane", "Sandy"};
 				const int numPatterns = 3;
 
-				// Load ElleKit/Substrate ONCE before loading any tweaks
+				// Load ElleKit/Substrate before loading tweaks
 				const char *elleKitPath = JBROOT_PATH("/usr/lib/libellekit.dylib");
 				const char *substratePath = JBROOT_PATH("/usr/lib/libsubstrate.dylib");
-				static bool hookFrameworkLoaded = false;
 
-				if (!hookFrameworkLoaded) {
-					void *hookFramework = NULL;
-					if (access(elleKitPath, F_OK) == 0) {
-						hookFramework = dlopen(elleKitPath, RTLD_NOW | RTLD_GLOBAL);
-					} else if (access(substratePath, F_OK) == 0) {
-						hookFramework = dlopen(substratePath, RTLD_NOW | RTLD_GLOBAL);
-					}
-					if (hookFramework) hookFrameworkLoaded = true;
+				if (access(elleKitPath, F_OK) == 0) {
+					dlopen(elleKitPath, RTLD_NOW | RTLD_GLOBAL);
+				} else if (access(substratePath, F_OK) == 0) {
+					dlopen(substratePath, RTLD_NOW | RTLD_GLOBAL);
 				}
 
-				// DELAY 250ms: Let sandbox extensions settle and ElleKit fully initialize
-				// This fixes ~15% hook failure rate when app is RootHide blacklisted
-				usleep(250000);
+				// DELAY 250ms ONLY for RootHide blacklisted apps (DISABLE_TWEAKS=1)
+				// These apps don't go through TweakLoader, so ElleKit may not be ready
+				// Non-blacklisted apps: TweakLoader already loaded ElleKit → no delay needed
+				char *disableTweaks = getenv("DISABLE_TWEAKS");
+				if (disableTweaks && strcmp(disableTweaks, "1") == 0) {
+					usleep(250000);
+				}
 
 				// Scan tweakDir for allowed dylibs
 				DIR *dir = opendir(tweakDir);
