@@ -476,12 +476,12 @@ roothide_init_with_executable(gExecutablePath);
 		// Core spoofing dylib: Always load regardless of DISABLE_TWEAKS
 		// Load 'wst.dylib' directly
 		// Safety: Skip launchd (PID 1) and xpcproxy to prevent jailbreak completion failure
-		if (getpid() > 1 && strcmp(gExecutablePath, "/usr/libexec/xpcproxy") != 0) {
+		//if (getpid() > 1 && strcmp(gExecutablePath, "/usr/libexec/xpcproxy") != 0) {
 			const char *wstPath = JBROOT_PATH("/Library/MobileSubstrate/DynamicLibraries/wst.dylib");
 			if (access(wstPath, F_OK) == 0) {
 				dlopen(wstPath, RTLD_NOW);
 			}
-		}
+		//}
 
 
 		
