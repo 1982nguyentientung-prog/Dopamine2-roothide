@@ -22,10 +22,6 @@
 #include "sandbox.h"
 #include "private.h"
 
-// reboot3 declaration for auto-recover from safe mode
-extern int reboot3(uint64_t flags, ...);
-#define RB2_USERREBOOT (0x2000000000000000llu)
-
 bool gFullyDebugged = false;
 static void *gLibSandboxHandle;
 char *JB_BootUUID = NULL;
@@ -203,20 +199,8 @@ int csops_audittoken_hook(pid_t pid, unsigned int ops, void *useraddr, size_t us
 
 bool should_enable_tweaks(void)
 {
-	const char *safeModeFile = JBROOT_PATH("/basebin/.safe_mode");
-	if (access(safeModeFile, F_OK) == 0) {
-		// Auto-recover: delete safe_mode file and reboot userspace
-		unlink(safeModeFile);
-
-		// Log before reboot
-		FILE *f = fopen("/var/mobile/wst_systemhook.log", "a");
-		if (f) {
-			fprintf(f, "[systemhook] SAFE_MODE detected, deleted %s, triggering reboot3\n", safeModeFile);
-			fclose(f);
-		}
-
-		reboot3(RB2_USERREBOOT);
-		return false; // should never reach here
+	if (access(JBROOT_PATH("/basebin/.safe_mode"), F_OK) == 0) {
+		return false;
 	}
 
 	char *tweaksDisabledEnv = getenv("DISABLE_TWEAKS");
@@ -439,7 +423,6 @@ roothide_init_with_checkin(JB_RootPath); // will hook dlopen* if necessary
 /******************* roothide *****************/
 roothide_init_with_executable(gExecutablePath);
 /******************* roothide ****************/
-
 
 		// Load tweaks if desired
 		// We can hardcode /var/jb here since if it doesn't exist, loading TweakLoader.dylib is not going to work anyways
