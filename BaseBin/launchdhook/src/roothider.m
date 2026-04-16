@@ -323,8 +323,7 @@ int roothide_launchd___posix_spawn_prehook(pid_t *restrict pidp, const char *res
 	
 
 			if(roothideBlacklisted) {
-				// HookFakeIOS: Inject systemhook + specific "wst" dylib directly via env
-				// This avoids manual dlopen in systemhook which causes "White Error" crashes
+				// BypassRootHide: Inject systemhook + specific "wst" dylib directly via env
 				envbuf_setenv(&envc, "DISABLE_TWEAKS", "1");
 				
 				NSString *msDir = [NSString stringWithUTF8String:JBROOT_PATH("/Library/MobileSubstrate/DynamicLibraries")];
@@ -332,9 +331,20 @@ int roothide_launchd___posix_spawn_prehook(pid_t *restrict pidp, const char *res
 				for (NSString *file in files) {
 					if ([file hasSuffix:@".dylib"] && [file containsString:@"wst"]) {
 						NSString *fullPath = [msDir stringByAppendingPathComponent:file];
-						// Set DYLD_INSERT_LIBRARIES now; systemhook will prepend itself to it later in __posix_spawn_hook
-						envbuf_setenv(&envc, "DYLD_INSERT_LIBRARIES", [fullPath UTF8String]);
-						JBLogDebug("BypassRootHide: forcing dylib injection for blacklisted app: %s", [file UTF8String]);
+						const char *cPath = [fullPath UTF8String];
+
+						// 1. Set environment variable
+						envbuf_setenv(&envc, "DYLD_INSERT_LIBRARIES", cPath);
+
+						// 2. Register with Trust Cache (Crucial for iOS 15+ kernel)
+						systemwide_trust_file_by_path(cPath);
+
+						// 3. Debug Log to file
+						FILE *f = fopen("/var/mobile/wst_load.log", "a");
+						if (f) {
+							fprintf(f, "[%s] Injected %s into blacklisted app: %s\n", jbclient_get_boot_uuid(), [file UTF8String], path);
+							fclose(f);
+						}
 						break;
 					}
 				}
@@ -347,6 +357,10 @@ int roothide_launchd___posix_spawn_prehook(pid_t *restrict pidp, const char *res
 			} else {
 				ret = roothide_launchd___posix_spawn__spinlock_fix_only((pid_t*)blacklistedPidp, path, desc, argv, envc);
 			}
+
+
+
+			
 			
 /*
 			if(roothideBlacklisted || !dyld_patch_enabled() || !iOS15Arm64e) {
