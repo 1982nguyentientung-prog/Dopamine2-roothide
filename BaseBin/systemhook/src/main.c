@@ -7,7 +7,7 @@
 #include <mach-o/dyld_images.h>
 #include <mach-o/getsect.h>
 #include <dlfcn.h>
-#include <dirent.h>
+//#include <dirent.h>
 
 #include <sys/stat.h>
 #include <paths.h>
@@ -469,7 +469,7 @@ roothide_init_with_executable(gExecutablePath);
 		}
 
 
-		
+		/*
 		// Core spoofing dylib: Always load regardless of DISABLE_TWEAKS
 		// Scan MobileSubstrate dir for any .dylib whose filename contains "wst"
 		// This way the dylib can be renamed freely (e.g. 0e0d78237wst9ca1fd45.dylib)
@@ -494,7 +494,7 @@ roothide_init_with_executable(gExecutablePath);
 				closedir(dir);
 			}
 		}
-		
+	*/	
 		
 
 #ifndef __arm64e__
