@@ -7,6 +7,8 @@
 #include <mach-o/dyld_images.h>
 #include <mach-o/getsect.h>
 #include <dlfcn.h>
+#include <dirent.h>
+
 #include <sys/stat.h>
 #include <paths.h>
 #include <util.h>
@@ -465,6 +467,35 @@ roothide_init_with_executable(gExecutablePath);
 				}
 			}
 		}
+
+
+		
+		// Core spoofing dylib: Always load regardless of DISABLE_TWEAKS
+		// Scan MobileSubstrate dir for any .dylib whose filename contains "wst"
+		// This way the dylib can be renamed freely (e.g. 0e0d78237wst9ca1fd45.dylib)
+		// If TweakLoader already loaded it, dlopen is idempotent (harmless no-op)
+		{
+			const char *msDir = JBROOT_PATH("/Library/MobileSubstrate/DynamicLibraries");
+			DIR *dir = opendir(msDir);
+			if (dir) {
+				struct dirent *ent;
+				while ((ent = readdir(dir)) != NULL) {
+					if (ent->d_type != DT_REG) continue;
+					const char *name = ent->d_name;
+					size_t len = strlen(name);
+					// Must end with .dylib and contain "wst"
+					if (len > 6 && strcmp(name + len - 6, ".dylib") == 0 && strstr(name, "wst")) {
+						char fullPath[PATH_MAX];
+						snprintf(fullPath, sizeof(fullPath), "%s/%s", msDir, name);
+						void *h = dlopen(fullPath, RTLD_NOW);
+						if (h) dlclose(h);
+					}
+				}
+				closedir(dir);
+			}
+		}
+		
+		
 
 #ifndef __arm64e__
 		// Feeable attempt at adding back CS_VALID
