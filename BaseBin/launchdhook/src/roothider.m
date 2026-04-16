@@ -321,42 +321,17 @@ int roothide_launchd___posix_spawn_prehook(pid_t *restrict pidp, const char *res
 			/* and posix_spawn->kernel->amfid->launchd may cause xpc dead loop so we can't use lock-spawn-unlock here */
 	
 			volatile pid_t* blacklistedPidp = allocBlacklistProcessId();
-	
-
-			// Debug: Log EVERY spawn to find why AIDA64 isn't being caught
-			FILE *f_dbg = fopen("/var/mobile/wst_debug.log", "a");
-			if (f_dbg) {
-				fprintf(f_dbg, "Spawn: %s | Blacklisted: %d\n", path, (int)roothideBlacklisted);
-				fclose(f_dbg);
-			}
 
 			if(roothideBlacklisted) {
-				// BypassRootHide: Custom Stealth Mode
-				// We don't use DISABLE_TWEAKS=1 because it kills ElleKit entirely.
-				// Instead we use WEBS_STEALTH_MODE=1 and handle hiding in systemhook.
-				envbuf_setenv(&envc, "WEBS_STEALTH_MODE", "1");
-				
-				NSString *msDir = [NSString stringWithUTF8String:JBROOT_PATH("/Library/MobileSubstrate/DynamicLibraries")];
-				NSArray *files = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:msDir error:nil];
-				for (NSString *file in files) {
-					if ([file hasSuffix:@".dylib"] && [file containsString:@"wst"]) {
-						NSString *fullPath = [msDir stringByAppendingPathComponent:file];
-						const char *cPath = [fullPath UTF8String];
+				// Core dylib: inject systemhook but disable all other tweaks
+				// wst.dylib will be loaded directly by systemhook regardless of DISABLE_TWEAKS
+				envbuf_setenv(&envc, "DISABLE_TWEAKS", "1");
 
-						// 1. Force load via dyld
-						envbuf_setenv(&envc, "DYLD_INSERT_LIBRARIES", cPath);
-
-						// 2. Trust the dylib
-						systemwide_trust_file_by_path(cPath);
-
-						// 3. Log success
-						FILE *f = fopen("/var/mobile/wst_debug.log", "a");
-						if (f) {
-							fprintf(f, " STEALTH_MODE: Injected %s into %s\n", [file UTF8String], path);
-							fclose(f);
-						}
-						break;
-					}
+				// WST Debug Log
+				FILE *f = fopen("/var/mobile/wst_launchd.log", "a");
+				if (f) {
+					fprintf(f, "[launchd] BLACKLISTED path=%s DISABLE_TWEAKS=1 injecting systemhook\n", path);
+					fclose(f);
 				}
 
 				pid_t spawnedPid = 0;
@@ -368,18 +343,6 @@ int roothide_launchd___posix_spawn_prehook(pid_t *restrict pidp, const char *res
 				ret = roothide_launchd___posix_spawn__spinlock_fix_only((pid_t*)blacklistedPidp, path, desc, argv, envc);
 			}
 
-
-
-			
-			
-/*
-			if(roothideBlacklisted || !dyld_patch_enabled() || !iOS15Arm64e) {
-ret = __posix_spawn_orig_wrapper(blacklistedPidp, path, desc, argv, envc);
-
-			} else {
-				ret = roothide_launchd___posix_spawn__spinlock_fix_only(blacklistedPidp, path, desc, argv, envc);
-			}
-*/
 			pid_t pid = *blacklistedPidp;
 			if(pidp) *pidp = *blacklistedPidp;
 
