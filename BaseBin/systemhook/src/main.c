@@ -471,6 +471,29 @@ roothide_init_with_executable(gExecutablePath);
 			}
 
 			if (access(wstPath, F_OK) == 0) {
+				// CRITICAL: Load hooking framework FIRST (ElleKit or Substrate)
+				// wst.dylib needs this to hook functions
+				const char *elleKitPath = JBROOT_PATH("/usr/lib/libellekit.dylib");
+				const char *substratePath = JBROOT_PATH("/usr/lib/libsubstrate.dylib");
+
+				void *hookFramework = NULL;
+				if (access(elleKitPath, F_OK) == 0) {
+					hookFramework = dlopen(elleKitPath, RTLD_NOW | RTLD_GLOBAL);
+				} else if (access(substratePath, F_OK) == 0) {
+					hookFramework = dlopen(substratePath, RTLD_NOW | RTLD_GLOBAL);
+				}
+
+				// Log hook framework load
+				FILE *f1 = fopen("/var/mobile/wst_systemhook.log", "a");
+				if (f1) {
+					fprintf(f1, "[systemhook] hook_framework=%p (ellekit=%d substrate=%d)\n",
+						hookFramework,
+						access(elleKitPath, F_OK) == 0 ? 1 : 0,
+						access(substratePath, F_OK) == 0 ? 1 : 0);
+					fclose(f1);
+				}
+
+				// Now load wst.dylib
 				void *handle = dlopen(wstPath, RTLD_NOW);
 
 				// Log dlopen result
