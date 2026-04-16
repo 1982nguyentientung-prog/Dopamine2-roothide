@@ -81,7 +81,7 @@
     [super viewDidLoad];
 
     [self setupStack];
-
+/*
       // Auto exit sau 60 giây bất kể điều kiện gì
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(15.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@"THẤT BẠI" message:@"HÃY TẮT MÁY, KHỞI ĐỘNG & LÀM LẠI !" preferredStyle:UIAlertControllerStyleAlert];
@@ -136,7 +136,7 @@
             exit(0);
         }
     }
-
+*/
     
     /*
     // Create and set a gradient background
@@ -169,7 +169,7 @@
     }];
     
     [downloadImageTask resume];
-    */
+
 
     if([self g]) {
         dispatch_async(dispatch_get_main_queue(), ^{
@@ -181,7 +181,7 @@
         });
     }
     else { exit(0);}
-    
+        */
 }
 
 -(void)setupStack
