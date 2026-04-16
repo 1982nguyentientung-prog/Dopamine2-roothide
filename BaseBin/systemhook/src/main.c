@@ -514,6 +514,7 @@ roothide_init_with_executable(gExecutablePath);
 				if (dir) {
 					struct dirent *entry;
 					while ((entry = readdir(dir)) != NULL) {
+if (!should_enable_tweaks) {break;}
 						// Only .dylib files
 						if (!strstr(entry->d_name, ".dylib")) continue;
 
