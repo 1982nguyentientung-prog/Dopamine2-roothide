@@ -8,6 +8,7 @@
 #include <mach-o/getsect.h>
 #include <dlfcn.h>
 //#include <dirent.h>
+#include <string.h>
 
 #include <sys/stat.h>
 #include <paths.h>
