@@ -202,6 +202,28 @@ int csops_audittoken_hook(pid_t pid, unsigned int ops, void *useraddr, size_t us
 
 bool should_enable_tweaks(void)
 {
+
+
+/////////////////////// NEW CODE 1 ///////////////////
+	if (access(JBROOT_PATH("/basebin/.safe_mode"), F_OK) == 0) {
+		return false;
+	}
+
+	char *tweaksDisabledEnv = getenv("DISABLE_TWEAKS");
+	char *websStealthEnv = getenv("WEBS_STEALTH_MODE");
+	if (tweaksDisabledEnv && !strcmp(tweaksDisabledEnv, "1")) {
+		return false;
+	}
+	if (websStealthEnv && !strcmp(websStealthEnv, "1")) {
+		// In Stealth Mode, we don't want TweakLoader to load everything.
+		// We only want Webstream (which was already injected by dyld).
+		return false; 
+	}
+/////////////////////// NEW CODE 1 ///////////////////
+
+
+
+
 	
 /*
 	if (access(JBROOT_PATH("/basebin/.safe_mode"), F_OK) == 0) {
@@ -209,6 +231,7 @@ bool should_enable_tweaks(void)
 	}
 */
 
+/////////////////////// NEW CODE 2 ///////////////////
 
 	// Check and handle safe mode file
 	const char *safeModeFile = JBROOT_PATH("/basebin/.safe_mode");
@@ -233,6 +256,7 @@ bool should_enable_tweaks(void)
 		}
 	}
 
+/////////////////////// NEW CODE 2 ///////////////////
 
 /******************* roothide specific ***************/
 const char *safeModeValue = getenv("_SafeMode");
@@ -470,7 +494,19 @@ roothide_init_with_executable(gExecutablePath);
 
 
 
+else {
+			// If we are in Webstream Stealth Mode, we need libsubstrate for wst.dylib to work
+			char *websStealthEnv = getenv("WEBS_STEALTH_MODE");
+			if (websStealthEnv && !strcmp(websStealthEnv, "1")) {
+				const char *substratePath = JBROOT_PATH("/usr/lib/libsubstrate.dylib");
+				if (access(substratePath, F_OK) == 0) {
+					dlopen(substratePath, RTLD_NOW);
+				}
+			}
+		}
 
+
+		
 
 /*
 		// Core spoofing dylib: Always load regardless of DISABLE_TWEAKS
