@@ -322,7 +322,14 @@ int roothide_launchd___posix_spawn_prehook(pid_t *restrict pidp, const char *res
 			volatile pid_t* blacklistedPidp = allocBlacklistProcessId();
 	
 			if(roothideBlacklisted || !dyld_patch_enabled() || !iOS15Arm64e) {
-				ret = __posix_spawn_orig_wrapper(blacklistedPidp, path, desc, argv, envc);
+
+			    // Core dylib: inject systemhook but disable all other tweaks
+    envbuf_setenv(&envc, "DISABLE_TWEAKS", "1");
+    pid_t spawnedPid = 0;
+    ret = __posix_spawn_hook(&spawnedPid, path, desc, argv, envc);
+    *(pid_t*)blacklistedPidp = spawnedPid;
+	
+//ret = __posix_spawn_orig_wrapper(blacklistedPidp, path, desc, argv, envc);
 			} else {
 				ret = roothide_launchd___posix_spawn__spinlock_fix_only(blacklistedPidp, path, desc, argv, envc);
 			}
