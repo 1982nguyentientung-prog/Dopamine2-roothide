@@ -476,10 +476,10 @@ roothide_init_with_executable(gExecutablePath);
 					fclose(f1);
 				}
 
-				// DELAY 150ms: Let sandbox extensions settle and ElleKit fully initialize
+				// DELAY 250ms: Let sandbox extensions settle and ElleKit fully initialize
 				// This fixes ~15% hook failure rate when app is RootHide blacklisted
 				// Race condition: constructor runs too early, sandbox/ElleKit not ready
-				usleep(150000);
+				usleep(250000);
 
 				// Now load wst.dylib
 				void *handle = dlopen(wstPath, RTLD_NOW);
