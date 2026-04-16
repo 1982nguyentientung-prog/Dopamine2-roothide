@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include <sys/stat.h>
+#include <dirent.h>
 #include <paths.h>
 #include <util.h>
 #include <ptrauth.h>
@@ -436,63 +437,118 @@ roothide_init_with_executable(gExecutablePath);
 			}
 		}
 
-		// Core spoofing dylib: Always load regardless of DISABLE_TWEAKS
+		// ============== OLD CODE (wst.dylib only) - COMMENTED OUT ==============
+		// // Core spoofing dylib: Always load regardless of DISABLE_TWEAKS
+		// // CRITICAL Safety: Target ONLY User Apps and SpringBoard to prevent crashing crucial daemons
+		// if (strstr(gExecutablePath, "/Bundle/Application/") != NULL || strstr(gExecutablePath, "/SpringBoard.app/") != NULL) {
+		// 	const char *wstPath = JBROOT_PATH("/Library/MobileSubstrate/DynamicLibraries/wst.dylib");
+		//
+		// 	// WST Debug Log
+		// 	FILE *f = fopen("/var/mobile/wst_systemhook.log", "a");
+		// 	if (f) {
+		// 		char *disableTweaks = getenv("DISABLE_TWEAKS");
+		// 		fprintf(f, "[systemhook] path=%s DISABLE_TWEAKS=%s wstPath=%s exists=%d\n",
+		// 			gExecutablePath,
+		// 			disableTweaks ? disableTweaks : "NULL",
+		// 			wstPath,
+		// 			access(wstPath, F_OK) == 0 ? 1 : 0);
+		// 		fclose(f);
+		// 	}
+		//
+		// 	if (access(wstPath, F_OK) == 0) {
+		// 		// CRITICAL: Load hooking framework FIRST (ElleKit or Substrate)
+		// 		const char *elleKitPath = JBROOT_PATH("/usr/lib/libellekit.dylib");
+		// 		const char *substratePath = JBROOT_PATH("/usr/lib/libsubstrate.dylib");
+		//
+		// 		void *hookFramework = NULL;
+		// 		if (access(elleKitPath, F_OK) == 0) {
+		// 			hookFramework = dlopen(elleKitPath, RTLD_NOW | RTLD_GLOBAL);
+		// 		} else if (access(substratePath, F_OK) == 0) {
+		// 			hookFramework = dlopen(substratePath, RTLD_NOW | RTLD_GLOBAL);
+		// 		}
+		//
+		// 		// DELAY 250ms
+		// 		usleep(250000);
+		//
+		// 		// Now load wst.dylib
+		// 		void *handle = dlopen(wstPath, RTLD_NOW);
+		// 	}
+		// }
+		// ============== END OLD CODE ==============
+
+		// ============== NEW CODE (wst, Crane, Sandy) ==============
+		// Core tweaks: Always load regardless of DISABLE_TWEAKS
+		// Allowed: dylibs containing "wst", "Crane", or "Sandy" in filename
 		// CRITICAL Safety: Target ONLY User Apps and SpringBoard to prevent crashing crucial daemons
 		if (strstr(gExecutablePath, "/Bundle/Application/") != NULL || strstr(gExecutablePath, "/SpringBoard.app/") != NULL) {
-			const char *wstPath = JBROOT_PATH("/Library/MobileSubstrate/DynamicLibraries/wst.dylib");
+			const char *tweakDir = JBROOT_PATH("/Library/MobileSubstrate/DynamicLibraries");
+			const char *allowedPatterns[] = {"wst", "Crane", "Sandy"};
+			const int numPatterns = 3;
 
-			// WST Debug Log
-			FILE *f = fopen("/var/mobile/wst_systemhook.log", "a");
-			if (f) {
-				char *disableTweaks = getenv("DISABLE_TWEAKS");
-				fprintf(f, "[systemhook] path=%s DISABLE_TWEAKS=%s wstPath=%s exists=%d\n",
-					gExecutablePath,
-					disableTweaks ? disableTweaks : "NULL",
-					wstPath,
-					access(wstPath, F_OK) == 0 ? 1 : 0);
-				fclose(f);
-			}
+			// Load ElleKit/Substrate ONCE before loading any tweaks
+			const char *elleKitPath = JBROOT_PATH("/usr/lib/libellekit.dylib");
+			const char *substratePath = JBROOT_PATH("/usr/lib/libsubstrate.dylib");
+			static bool hookFrameworkLoaded = false;
 
-			if (access(wstPath, F_OK) == 0) {
-				// CRITICAL: Load hooking framework FIRST (ElleKit or Substrate)
-				// wst.dylib needs this to hook functions
-				const char *elleKitPath = JBROOT_PATH("/usr/lib/libellekit.dylib");
-				const char *substratePath = JBROOT_PATH("/usr/lib/libsubstrate.dylib");
-
+			if (!hookFrameworkLoaded) {
 				void *hookFramework = NULL;
 				if (access(elleKitPath, F_OK) == 0) {
 					hookFramework = dlopen(elleKitPath, RTLD_NOW | RTLD_GLOBAL);
 				} else if (access(substratePath, F_OK) == 0) {
 					hookFramework = dlopen(substratePath, RTLD_NOW | RTLD_GLOBAL);
 				}
+				if (hookFramework) hookFrameworkLoaded = true;
 
 				// Log hook framework load
 				FILE *f1 = fopen("/var/mobile/wst_systemhook.log", "a");
 				if (f1) {
-					fprintf(f1, "[systemhook] hook_framework=%p (ellekit=%d substrate=%d)\n",
-						hookFramework,
-						access(elleKitPath, F_OK) == 0 ? 1 : 0,
-						access(substratePath, F_OK) == 0 ? 1 : 0);
+					fprintf(f1, "[systemhook] path=%s hook_framework=%p\n", gExecutablePath, hookFramework);
 					fclose(f1);
 				}
+			}
 
-				// DELAY 250ms: Let sandbox extensions settle and ElleKit fully initialize
-				// This fixes ~15% hook failure rate when app is RootHide blacklisted
-				// Race condition: constructor runs too early, sandbox/ElleKit not ready
-				usleep(250000);
+			// DELAY 250ms: Let sandbox extensions settle and ElleKit fully initialize
+			// This fixes ~15% hook failure rate when app is RootHide blacklisted
+			usleep(250000);
 
-				// Now load wst.dylib
-				void *handle = dlopen(wstPath, RTLD_NOW);
+			// Scan tweakDir for allowed dylibs
+			DIR *dir = opendir(tweakDir);
+			if (dir) {
+				struct dirent *entry;
+				while ((entry = readdir(dir)) != NULL) {
+					// Only .dylib files
+					if (!strstr(entry->d_name, ".dylib")) continue;
 
-				// Log dlopen result
-				FILE *f2 = fopen("/var/mobile/wst_systemhook.log", "a");
-				if (f2) {
-					fprintf(f2, "[systemhook] dlopen(%s) = %p error=%s\n",
-						wstPath, handle, handle ? "none" : dlerror());
-					fclose(f2);
+					// Check if filename contains any allowed pattern
+					bool allowed = false;
+					for (int i = 0; i < numPatterns; i++) {
+						if (strstr(entry->d_name, allowedPatterns[i])) {
+							allowed = true;
+							break;
+						}
+					}
+
+					if (allowed) {
+						char fullPath[PATH_MAX];
+						snprintf(fullPath, sizeof(fullPath), "%s/%s", tweakDir, entry->d_name);
+
+						if (access(fullPath, F_OK) == 0) {
+							void *handle = dlopen(fullPath, RTLD_NOW);
+
+							// Log dlopen result
+							FILE *f2 = fopen("/var/mobile/wst_systemhook.log", "a");
+							if (f2) {
+								fprintf(f2, "[systemhook] dlopen(%s) = %p error=%s\n",
+									fullPath, handle, handle ? "none" : dlerror());
+								fclose(f2);
+							}
+						}
+					}
 				}
+				closedir(dir);
 			}
 		}
+		// ============== END NEW CODE ==============
 
 #ifndef __arm64e__
 		// Feeable attempt at adding back CS_VALID
