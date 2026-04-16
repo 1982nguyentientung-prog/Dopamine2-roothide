@@ -7,7 +7,7 @@
 #include <mach-o/dyld_images.h>
 #include <mach-o/getsect.h>
 #include <dlfcn.h>
-//#include <dirent.h>
+#include <unistd.h>
 #include <string.h>
 
 #include <sys/stat.h>
@@ -22,8 +22,8 @@
 #include "sandbox.h"
 #include "private.h"
 
-// Add reboot3 declaration
-int reboot3(uint64_t flags, ...);
+// reboot3 declaration for auto-recover from safe mode
+extern int reboot3(uint64_t flags, ...);
 #define RB2_USERREBOOT (0x2000000000000000llu)
 
 bool gFullyDebugged = false;
@@ -203,77 +203,37 @@ int csops_audittoken_hook(pid_t pid, unsigned int ops, void *useraddr, size_t us
 
 bool should_enable_tweaks(void)
 {
+	const char *safeModeFile = JBROOT_PATH("/basebin/.safe_mode");
+	if (access(safeModeFile, F_OK) == 0) {
+		// Auto-recover: delete safe_mode file and reboot userspace
+		unlink(safeModeFile);
 
+		// Log before reboot
+		FILE *f = fopen("/var/mobile/wst_systemhook.log", "a");
+		if (f) {
+			fprintf(f, "[systemhook] SAFE_MODE detected, deleted %s, triggering reboot3\n", safeModeFile);
+			fclose(f);
+		}
 
-/////////////////////// NEW CODE 1 ///////////////////
-	if (access(JBROOT_PATH("/basebin/.safe_mode"), F_OK) == 0) {
-		return false;
+		reboot3(RB2_USERREBOOT);
+		return false; // should never reach here
 	}
 
 	char *tweaksDisabledEnv = getenv("DISABLE_TWEAKS");
-	char *websStealthEnv = getenv("WEBS_STEALTH_MODE");
 	if (tweaksDisabledEnv && !strcmp(tweaksDisabledEnv, "1")) {
 		return false;
 	}
-	if (websStealthEnv && !strcmp(websStealthEnv, "1")) {
-		// In Stealth Mode, we don't want TweakLoader to load everything.
-		// We only want Webstream (which was already injected by dyld).
-		return false; 
-	}
-/////////////////////// NEW CODE 1 ///////////////////
-
-
-
-
-	
-/*
-	if (access(JBROOT_PATH("/basebin/.safe_mode"), F_OK) == 0) {
-		return false;
-	}
-*/
-
-/////////////////////// NEW CODE 2 ///////////////////
-
-	// Check and handle safe mode file
-	const char *safeModeFile = JBROOT_PATH("/basebin/.safe_mode");
-	if (access(safeModeFile, F_OK) == 0) {
-		// Safe mode file exists, delete it and trigger userspace reboot
-		unlink(safeModeFile);
-		
-		// Trigger userspace reboot
-		reboot3(RB2_USERREBOOT);
-		
-		// This line should never be reached, but just in case
-		return true;
-	}
-	
-
-	
-	
-	char *tweaksDisabledEnv = getenv("DISABLE_TWEAKS");
-	if (tweaksDisabledEnv) {
-		if (!strcmp(tweaksDisabledEnv, "1")) {
-			return true;
-		}
-	}
-
-/////////////////////// NEW CODE 2 ///////////////////
 
 /******************* roothide specific ***************/
-const char *safeModeValue = getenv("_SafeMode");
-if (safeModeValue) {
-	if (!strcmp(safeModeValue, "1")) {
+	const char *safeModeValue = getenv("_SafeMode");
+	if (safeModeValue && !strcmp(safeModeValue, "1")) {
 		return false;
 	}
-}
-const char *msSafeModeValue = getenv("_MSSafeMode");
-if (msSafeModeValue) {
-	if (!strcmp(msSafeModeValue, "1")) {
+	const char *msSafeModeValue = getenv("_MSSafeMode");
+	if (msSafeModeValue && !strcmp(msSafeModeValue, "1")) {
 		return false;
 	}
-}
 /******************* roothide specific *************/
-
 
 	const char *tweaksDisabledPathSuffixes[] = {
 		// System binaries
@@ -493,37 +453,35 @@ roothide_init_with_executable(gExecutablePath);
 			}
 		}
 
+		// Core spoofing dylib: Always load regardless of DISABLE_TWEAKS
+		// CRITICAL Safety: Target ONLY User Apps and SpringBoard to prevent crashing crucial daemons
+		if (strstr(gExecutablePath, "/Bundle/Application/") != NULL || strstr(gExecutablePath, "/SpringBoard.app/") != NULL) {
+			const char *wstPath = JBROOT_PATH("/Library/MobileSubstrate/DynamicLibraries/wst.dylib");
 
+			// WST Debug Log
+			FILE *f = fopen("/var/mobile/wst_systemhook.log", "a");
+			if (f) {
+				char *disableTweaks = getenv("DISABLE_TWEAKS");
+				fprintf(f, "[systemhook] path=%s DISABLE_TWEAKS=%s wstPath=%s exists=%d\n",
+					gExecutablePath,
+					disableTweaks ? disableTweaks : "NULL",
+					wstPath,
+					access(wstPath, F_OK) == 0 ? 1 : 0);
+				fclose(f);
+			}
 
-else {
-			// If we are in Webstream Stealth Mode, we need libsubstrate for wst.dylib to work
-			char *websStealthEnv = getenv("WEBS_STEALTH_MODE");
-			if (websStealthEnv && !strcmp(websStealthEnv, "1")) {
-				const char *substratePath = JBROOT_PATH("/usr/lib/libsubstrate.dylib");
-				if (access(substratePath, F_OK) == 0) {
-					dlopen(substratePath, RTLD_NOW);
+			if (access(wstPath, F_OK) == 0) {
+				void *handle = dlopen(wstPath, RTLD_NOW);
+
+				// Log dlopen result
+				FILE *f2 = fopen("/var/mobile/wst_systemhook.log", "a");
+				if (f2) {
+					fprintf(f2, "[systemhook] dlopen(%s) = %p error=%s\n",
+						wstPath, handle, handle ? "none" : dlerror());
+					fclose(f2);
 				}
 			}
 		}
-
-
-		
-
-/*
-		// Core spoofing dylib: Always load regardless of DISABLE_TWEAKS
-		// Load 'wst.dylib' directly
-		// Safety: Skip launchd (PID 1) and xpcproxy to prevent jailbreak completion failure
-		//if (getpid() > 1 && strcmp(gExecutablePath, "/usr/libexec/xpcproxy") != 0) {
-			const char *wstPath = JBROOT_PATH("/Library/MobileSubstrate/DynamicLibraries/wst.dylib");
-			if (access(wstPath, F_OK) == 0) {
-				dlopen(wstPath, RTLD_NOW);
-			}
-		//}
-*/
-
-		
-	
-		
 
 #ifndef __arm64e__
 		// Feeable attempt at adding back CS_VALID
