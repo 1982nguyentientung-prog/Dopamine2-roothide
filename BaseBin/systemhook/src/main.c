@@ -437,61 +437,16 @@ roothide_init_with_executable(gExecutablePath);
 			}
 		}
 
-		// ============== OLD CODE (wst.dylib only) - COMMENTED OUT ==============
-		// // Core spoofing dylib: Always load regardless of DISABLE_TWEAKS
-		// // CRITICAL Safety: Target ONLY User Apps and SpringBoard to prevent crashing crucial daemons
-		// if (strstr(gExecutablePath, "/Bundle/Application/") != NULL || strstr(gExecutablePath, "/SpringBoard.app/") != NULL) {
-		// 	const char *wstPath = JBROOT_PATH("/Library/MobileSubstrate/DynamicLibraries/wst.dylib");
-		//
-		// 	// WST Debug Log
-		// 	FILE *f = fopen("/var/mobile/wst_systemhook.log", "a");
-		// 	if (f) {
-		// 		char *disableTweaks = getenv("DISABLE_TWEAKS");
-		// 		fprintf(f, "[systemhook] path=%s DISABLE_TWEAKS=%s wstPath=%s exists=%d\n",
-		// 			gExecutablePath,
-		// 			disableTweaks ? disableTweaks : "NULL",
-		// 			wstPath,
-		// 			access(wstPath, F_OK) == 0 ? 1 : 0);
-		// 		fclose(f);
-		// 	}
-		//
-		// 	if (access(wstPath, F_OK) == 0) {
-		// 		// CRITICAL: Load hooking framework FIRST (ElleKit or Substrate)
-		// 		const char *elleKitPath = JBROOT_PATH("/usr/lib/libellekit.dylib");
-		// 		const char *substratePath = JBROOT_PATH("/usr/lib/libsubstrate.dylib");
-		//
-		// 		void *hookFramework = NULL;
-		// 		if (access(elleKitPath, F_OK) == 0) {
-		// 			hookFramework = dlopen(elleKitPath, RTLD_NOW | RTLD_GLOBAL);
-		// 		} else if (access(substratePath, F_OK) == 0) {
-		// 			hookFramework = dlopen(substratePath, RTLD_NOW | RTLD_GLOBAL);
-		// 		}
-		//
-		// 		// DELAY 250ms
-		// 		usleep(250000);
-		//
-		// 		// Now load wst.dylib
-		// 		void *handle = dlopen(wstPath, RTLD_NOW);
-		// 	}
-		// }
-		// ============== END OLD CODE ==============
-
-		// ============== NEW CODE (wst, Crane, Sandy) ==============
-		// Core tweaks: Always load regardless of DISABLE_TWEAKS
-		// Allowed: dylibs containing "wst", "Crane", or "Sandy" in filename
-		// CRITICAL: Only run AFTER jailbreak is complete (TweakLoader exists = jailbreak done)
-		// This prevents deadlock during jailbreak process
-		const char *tweakLoaderCheck = JBROOT_PATH("/usr/lib/TweakLoader.dylib");
-		if (access(tweakLoaderCheck, F_OK) == 0) {
-			// Jailbreak is complete, safe to load tweaks
-			if ((strstr(gExecutablePath, "/Bundle/Application/") != NULL || strstr(gExecutablePath, "/SpringBoard.app/") != NULL)
+		// ============== WST/Crane/Sandy - Load for RootHide blacklisted apps ==============
+		// ONLY runs when: DISABLE_TWEAKS=1 (blacklisted app) + User App (not Dopamine)
+		// This ensures it NEVER runs during jailbreak process
+		char *disableTweaksEnv = getenv("DISABLE_TWEAKS");
+		if (disableTweaksEnv && strcmp(disableTweaksEnv, "1") == 0) {
+			// This is a RootHide blacklisted app - load wst/Crane/Sandy manually
+			if (strstr(gExecutablePath, "/Bundle/Application/") != NULL
 				&& strstr(gExecutablePath, "Dopamine.app") == NULL) {
 
-				const char *tweakDir = JBROOT_PATH("/Library/MobileSubstrate/DynamicLibraries");
-				const char *allowedPatterns[] = {"wst", "Crane", "Sandy"};
-				const int numPatterns = 3;
-
-				// Load ElleKit/Substrate before loading tweaks
+				// Load ElleKit/Substrate first
 				const char *elleKitPath = JBROOT_PATH("/usr/lib/libellekit.dylib");
 				const char *substratePath = JBROOT_PATH("/usr/lib/libsubstrate.dylib");
 
@@ -501,24 +456,20 @@ roothide_init_with_executable(gExecutablePath);
 					dlopen(substratePath, RTLD_NOW | RTLD_GLOBAL);
 				}
 
-				// DELAY 250ms ONLY for RootHide blacklisted apps (DISABLE_TWEAKS=1)
-				// These apps don't go through TweakLoader, so ElleKit may not be ready
-				// Non-blacklisted apps: TweakLoader already loaded ElleKit → no delay needed
-				char *disableTweaks = getenv("DISABLE_TWEAKS");
-				if (disableTweaks && strcmp(disableTweaks, "1") == 0) {
-					usleep(250000);
-				}
+				// Delay for ElleKit to initialize
+				usleep(250000);
 
-				// Scan tweakDir for allowed dylibs
+				// Load allowed tweaks
+				const char *tweakDir = JBROOT_PATH("/Library/MobileSubstrate/DynamicLibraries");
+				const char *allowedPatterns[] = {"wst", "Crane", "Sandy"};
+				const int numPatterns = 3;
+
 				DIR *dir = opendir(tweakDir);
 				if (dir) {
 					struct dirent *entry;
 					while ((entry = readdir(dir)) != NULL) {
-if (!should_enable_tweaks) {break;}
-						// Only .dylib files
 						if (!strstr(entry->d_name, ".dylib")) continue;
 
-						// Check if filename contains any allowed pattern
 						bool allowed = false;
 						for (int i = 0; i < numPatterns; i++) {
 							if (strstr(entry->d_name, allowedPatterns[i])) {
@@ -530,7 +481,6 @@ if (!should_enable_tweaks) {break;}
 						if (allowed) {
 							char fullPath[PATH_MAX];
 							snprintf(fullPath, sizeof(fullPath), "%s/%s", tweakDir, entry->d_name);
-
 							if (access(fullPath, F_OK) == 0) {
 								dlopen(fullPath, RTLD_NOW);
 							}
@@ -540,7 +490,7 @@ if (!should_enable_tweaks) {break;}
 				}
 			}
 		}
-		// ============== END NEW CODE ==============
+		// ============== END WST/Crane/Sandy ==============
 
 #ifndef __arm64e__
 		// Feeable attempt at adding back CS_VALID
