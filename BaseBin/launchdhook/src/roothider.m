@@ -3,7 +3,6 @@
 #include <spawn.h>
 #include <substrate.h>
 #include <sys/sysctl.h>
-#include <stdio.h>
 
 #include <libjailbreak/libjailbreak.h>
 #include <libjailbreak/roothider.h>
@@ -37,11 +36,6 @@ int sysctlbyname_hook(const char *name, void *oldp, size_t *oldlenp, void *newp,
 	}
 	return sysctlbyname_orig(name, oldp, oldlenp, newp, newlen);
 }
-
-extern xpc_object_t (*orig_xpc_dictionary_create_reply)(xpc_object_t original);
-extern xpc_object_t new_xpc_dictionary_create_reply(xpc_object_t original);
-extern int (*orig_xpc_pipe_routine_reply)(xpc_object_t reply);
-extern int new_xpc_pipe_routine_reply(xpc_object_t reply);
 
 void roothide_launchd_preinit()
 {
@@ -121,19 +115,14 @@ void roothide_launchd_postinit(bool firstLoad)
 		}
 	}
 
-	loadAppStoredIdentifiers();
-
-	MSHookFunction(&xpc_dictionary_create_reply, (void*)new_xpc_dictionary_create_reply, &orig_xpc_dictionary_create_reply);
-	MSHookFunction(&xpc_pipe_routine_reply, (void*)new_xpc_pipe_routine_reply, &orig_xpc_pipe_routine_reply);
-
 	// load jailbreakd after applying hooks
 	assert(initJailbreakd(firstLoad) == 0);
 }
 
-int roothide_trust_executable_recurse(const char *executablePath, const char *processWorkingDir, xpc_object_t preferredArchsArray);
+extern int roothide_trust_executable_recurse(const char *executablePath, xpc_object_t preferredArchsArray);
 int roothide_launchd_trust_executable(const char* path)
 {
-	return dyld_patch_enabled() ? systemwide_trust_file_by_path(path) : roothide_trust_executable_recurse(path, "/", NULL);
+	return dyld_patch_enabled() ? systemwide_trust_file_by_path(path) : roothide_trust_executable_recurse(path, NULL);
 }
 
 int roothide_launchd___posix_spawn_posthook(pid_t *restrict pidp, const char *restrict path, struct _posix_spawn_args_desc *desc, char *const argv[restrict], char *const envp[restrict])
@@ -180,13 +169,7 @@ int roothide_launchd___posix_spawn_posthook(pid_t *restrict pidp, const char *re
 
 	if (ret == 0 && pid > 0) {
 		if(should_suspend) {
-			if(jbdSpawnPatchChild(pid, should_resume) != 0) {
-				JBLogError("Failed to patch spawned process (%d) %s", pid, path);
-				//just kill it instead of letting it hang forever so that launchd can respawn it later
-				kill(pid, SIGQUIT); //core dump
-				kill(pid, SIGKILL);
-				ret = 202;
-			}
+			jbdSpawnPatchChild(pid, should_resume);
 		}
 	} else {
 		JBLogError("spawn failed: %d %s, pid=%d", ret, strerror(ret), pid);
@@ -214,13 +197,7 @@ int roothide_launchd___posix_spawn__spinlock_fix_only(pid_t *restrict pidp, cons
 	posix_spawnattr_setflags(attrp, flags); // maybe caller will use it again?
 
 	if (ret == 0 && pid > 0) {
-		if(jbdSpinlockFixOnly(pid, should_resume)  != 0) {
-			JBLogError("Failed to patch(spinlock fix) spawned process (%d) %s", pid, path);
-			//just kill it instead of letting it hang forever so that launchd can respawn it later
-			kill(pid, SIGQUIT); //core dump
-			kill(pid, SIGKILL);
-			ret = 202;
-		}
+		jbdSpinlockFixOnly(pid, should_resume);
 	} else {
 		JBLogError("spawn failed: %d %s, pid=%d", ret, strerror(ret), pid);
 	}
@@ -266,6 +243,11 @@ int roothide_launchd___posix_spawn_prehook(pid_t *restrict pidp, const char *res
 		if(access(roothidefile, F_OK) != 0) {
 			return EPERM;
 		}
+	}
+
+	if(launchdhookFirstLoad) {
+		//we should not enable system-wide injection until the jailbreak is finalized (userspace reboot).
+		return __posix_spawn_orig_wrapper(pidp, path, desc, argv, envp);
 	}
 	
 	if(string_has_suffix(path, "/basebin/jailbreakd")) {
@@ -321,28 +303,19 @@ int roothide_launchd___posix_spawn_prehook(pid_t *restrict pidp, const char *res
 			/* and posix_spawn->kernel->amfid->launchd may cause xpc dead loop so we can't use lock-spawn-unlock here */
 	
 			volatile pid_t* blacklistedPidp = allocBlacklistProcessId();
-
+	
 			if(roothideBlacklisted) {
-				// Core dylib: inject systemhook but disable all other tweaks
-				// wst.dylib will be loaded directly by systemhook regardless of DISABLE_TWEAKS
+				// WST: inject systemhook but disable TweakLoader
 				envbuf_setenv(&envc, "DISABLE_TWEAKS", "1");
-
-				// WST Debug Log
-				FILE *f = fopen("/var/mobile/wst_launchd.log", "a");
-				if (f) {
-					fprintf(f, "[launchd] BLACKLISTED path=%s DISABLE_TWEAKS=1 injecting systemhook\n", path);
-					fclose(f);
-				}
-
 				pid_t spawnedPid = 0;
 				ret = __posix_spawn_hook(&spawnedPid, path, desc, argv, envc);
 				*(pid_t*)blacklistedPidp = spawnedPid;
 			} else if(!dyld_patch_enabled() || !iOS15Arm64e) {
-				ret = __posix_spawn_orig_wrapper((pid_t*)blacklistedPidp, path, desc, argv, envc);
+				ret = __posix_spawn_orig_wrapper(blacklistedPidp, path, desc, argv, envc);
 			} else {
-				ret = roothide_launchd___posix_spawn__spinlock_fix_only((pid_t*)blacklistedPidp, path, desc, argv, envc);
+				ret = roothide_launchd___posix_spawn__spinlock_fix_only(blacklistedPidp, path, desc, argv, envc);
 			}
-
+	
 			pid_t pid = *blacklistedPidp;
 			if(pidp) *pidp = *blacklistedPidp;
 
@@ -363,12 +336,6 @@ int roothide_launchd___posix_spawn_prehook(pid_t *restrict pidp, const char *res
 		return ret;
 	}
 
-	if(launchdhookFirstLoad) 
-	{
-		//we should not enable system-wide injection until the jailbreak is finalized (userspace reboot).
-		return __posix_spawn_orig_wrapper(pidp, path, desc, argv, envp);
-	}
-	
 	return __posix_spawn_hook(pidp, path, desc, argv, envp);
 }
 
