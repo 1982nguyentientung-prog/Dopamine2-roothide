@@ -1,5 +1,3 @@
-//https://github.com/1982nguyentientung-prog/Dopamine2-roothide/blob/2.x/BaseBin/systemhook/src/main.c
-
 #include "common.h"
 #include "roothider.h"
 
@@ -7,11 +5,7 @@
 #include <mach-o/dyld_images.h>
 #include <mach-o/getsect.h>
 #include <dlfcn.h>
-#include <unistd.h>
-#include <string.h>
-
 #include <sys/stat.h>
-#include <dirent.h>
 #include <paths.h>
 #include <util.h>
 #include <ptrauth.h>
@@ -205,20 +199,28 @@ bool should_enable_tweaks(void)
 	}
 
 	char *tweaksDisabledEnv = getenv("DISABLE_TWEAKS");
-	if (tweaksDisabledEnv && !strcmp(tweaksDisabledEnv, "1")) {
-		return false;
+	if (tweaksDisabledEnv) {
+		if (!strcmp(tweaksDisabledEnv, "1")) {
+			return false;
+		}
 	}
 
+
 /******************* roothide specific ***************/
-	const char *safeModeValue = getenv("_SafeMode");
-	if (safeModeValue && !strcmp(safeModeValue, "1")) {
+const char *safeModeValue = getenv("_SafeMode");
+if (safeModeValue) {
+	if (!strcmp(safeModeValue, "1")) {
 		return false;
 	}
-	const char *msSafeModeValue = getenv("_MSSafeMode");
-	if (msSafeModeValue && !strcmp(msSafeModeValue, "1")) {
+}
+const char *msSafeModeValue = getenv("_MSSafeMode");
+if (msSafeModeValue) {
+	if (!strcmp(msSafeModeValue, "1")) {
 		return false;
 	}
+}
 /******************* roothide specific *************/
+
 
 	const char *tweaksDisabledPathSuffixes[] = {
 		// System binaries
@@ -425,6 +427,7 @@ roothide_init_with_checkin(JB_RootPath); // will hook dlopen* if necessary
 roothide_init_with_executable(gExecutablePath);
 /******************* roothide ****************/
 
+
 		// Load tweaks if desired
 		// We can hardcode /var/jb here since if it doesn't exist, loading TweakLoader.dylib is not going to work anyways
 		if (should_enable_tweaks()) {
@@ -436,30 +439,6 @@ roothide_init_with_executable(gExecutablePath);
 				}
 			}
 		}
-
-		// ============== WST ONLY - Simple & Safe ==============
-		// Load wst.dylib for RootHide blacklisted User Apps ONLY
-		// Conditions: DISABLE_TWEAKS=1 + path contains /Bundle/Application/ + NOT Dopamine
-		{
-			char *dt = getenv("DISABLE_TWEAKS");
-			if (dt && strcmp(dt, "1") == 0
-				&& strstr(gExecutablePath, "/Bundle/Application/") != NULL
-				&& strstr(gExecutablePath, "Dopamine.app") == NULL) {
-
-				// Load ElleKit first (required for hooks)
-				const char *ek = JBROOT_PATH("/usr/lib/libellekit.dylib");
-				if (access(ek, F_OK) == 0) {
-					dlopen(ek, RTLD_NOW | RTLD_GLOBAL);
-				}
-
-				// Load wst.dylib
-				const char *wst = JBROOT_PATH("/Library/MobileSubstrate/DynamicLibraries/wst.dylib");
-				if (access(wst, F_OK) == 0) {
-					dlopen(wst, RTLD_NOW);
-				}
-			}
-		}
-		// ============== END WST ==============
 
 #ifndef __arm64e__
 		// Feeable attempt at adding back CS_VALID
