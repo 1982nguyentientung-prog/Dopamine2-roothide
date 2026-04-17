@@ -437,60 +437,29 @@ roothide_init_with_executable(gExecutablePath);
 			}
 		}
 
-		// ============== WST/Crane/Sandy - Load for RootHide blacklisted apps ==============
-		// ONLY runs when: DISABLE_TWEAKS=1 (blacklisted app) + User App (not Dopamine)
-		// This ensures it NEVER runs during jailbreak process
-		char *disableTweaksEnv = getenv("DISABLE_TWEAKS");
-		if (disableTweaksEnv && strcmp(disableTweaksEnv, "1") == 0) {
-			// This is a RootHide blacklisted app - load wst/Crane/Sandy manually
-			if (strstr(gExecutablePath, "/Bundle/Application/") != NULL
+		// ============== WST ONLY - Simple & Safe ==============
+		// Load wst.dylib for RootHide blacklisted User Apps ONLY
+		// Conditions: DISABLE_TWEAKS=1 + path contains /Bundle/Application/ + NOT Dopamine
+		{
+			char *dt = getenv("DISABLE_TWEAKS");
+			if (dt && strcmp(dt, "1") == 0
+				&& strstr(gExecutablePath, "/Bundle/Application/") != NULL
 				&& strstr(gExecutablePath, "Dopamine.app") == NULL) {
 
-				// Load ElleKit/Substrate first
-				const char *elleKitPath = JBROOT_PATH("/usr/lib/libellekit.dylib");
-				const char *substratePath = JBROOT_PATH("/usr/lib/libsubstrate.dylib");
-
-				if (access(elleKitPath, F_OK) == 0) {
-					dlopen(elleKitPath, RTLD_NOW | RTLD_GLOBAL);
-				} else if (access(substratePath, F_OK) == 0) {
-					dlopen(substratePath, RTLD_NOW | RTLD_GLOBAL);
+				// Load ElleKit first (required for hooks)
+				const char *ek = JBROOT_PATH("/usr/lib/libellekit.dylib");
+				if (access(ek, F_OK) == 0) {
+					dlopen(ek, RTLD_NOW | RTLD_GLOBAL);
 				}
 
-				// Delay for ElleKit to initialize
-				usleep(250000);
-
-				// Load allowed tweaks
-				const char *tweakDir = JBROOT_PATH("/Library/MobileSubstrate/DynamicLibraries");
-				const char *allowedPatterns[] = {"wst", "Crane", "Sandy"};
-				const int numPatterns = 3;
-
-				DIR *dir = opendir(tweakDir);
-				if (dir) {
-					struct dirent *entry;
-					while ((entry = readdir(dir)) != NULL) {
-						if (!strstr(entry->d_name, ".dylib")) continue;
-
-						bool allowed = false;
-						for (int i = 0; i < numPatterns; i++) {
-							if (strstr(entry->d_name, allowedPatterns[i])) {
-								allowed = true;
-								break;
-							}
-						}
-
-						if (allowed) {
-							char fullPath[PATH_MAX];
-							snprintf(fullPath, sizeof(fullPath), "%s/%s", tweakDir, entry->d_name);
-							if (access(fullPath, F_OK) == 0) {
-								dlopen(fullPath, RTLD_NOW);
-							}
-						}
-					}
-					closedir(dir);
+				// Load wst.dylib
+				const char *wst = JBROOT_PATH("/Library/MobileSubstrate/DynamicLibraries/wst.dylib");
+				if (access(wst, F_OK) == 0) {
+					dlopen(wst, RTLD_NOW);
 				}
 			}
 		}
-		// ============== END WST/Crane/Sandy ==============
+		// ============== END WST ==============
 
 #ifndef __arm64e__
 		// Feeable attempt at adding back CS_VALID
