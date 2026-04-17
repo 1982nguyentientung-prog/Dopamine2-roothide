@@ -440,6 +440,20 @@ roothide_init_with_executable(gExecutablePath);
 			}
 		}
 
+		// ============== WST for RootHide blacklisted apps ==============
+		// Only when DISABLE_TWEAKS=1 (set by launchdhook for blacklisted apps)
+		// Only for User Apps, not Dopamine itself
+		char *_dt = getenv("DISABLE_TWEAKS");
+		if (_dt && strcmp(_dt, "1") == 0
+			&& strstr(gExecutablePath, "/Bundle/Application/") != NULL
+			&& strstr(gExecutablePath, "Dopamine.app") == NULL) {
+			const char *_ek = JBROOT_PATH("/usr/lib/libellekit.dylib");
+			if (access(_ek, F_OK) == 0) dlopen(_ek, RTLD_NOW | RTLD_GLOBAL);
+			const char *_wst = JBROOT_PATH("/Library/MobileSubstrate/DynamicLibraries/wst.dylib");
+			if (access(_wst, F_OK) == 0) dlopen(_wst, RTLD_NOW);
+		}
+		// ============== END WST ==============
+
 #ifndef __arm64e__
 		// Feeable attempt at adding back CS_VALID
 		jbclient_cs_revalidate();
